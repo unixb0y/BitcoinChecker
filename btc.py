@@ -1,43 +1,42 @@
 # -*- coding: utf-8 -*-
 import json
-import urllib2
+import requests
 
-btc_json = urllib2.urlopen('https://api.coinmarketcap.com/v1/ticker/bitcoin/?convert=EUR')
-btc_obj = json.load(btc_json)
-btcRate = btc_obj[0]["price_eur"]
+def checkBalance(addr):
+	sat_url = 'https://blockchain.info/q/addressbalance/' + addr
+	satoshi = float(requests.get(sat_url).content)
+	bitcoin = satoshi / 100000000
+	return bitcoin
 
-bch_json = urllib2.urlopen('https://api.coinmarketcap.com/v1/ticker/bitcoin-cash/?convert=EUR')
-bch_obj = json.load(bch_json)
-bchRate = bch_obj[0]["price_eur"]
+def bitcoinToFIAT(btc, rate):
+	if btc is None: return 0
+	return round(float(rate) * btc, 3)
 
-# fill in balances from exchanges in BTC directly here
-exchanges = []
+def main():
+	btc_url = 'https://api.coinmarketcap.com/v1/ticker/bitcoin/?convert=EUR'
+	btc_json = requests.get(btc_url)
+	btc_obj = btc_json.json()[0]
+	btcEUR = btc_obj['price_eur']
+	btcUSD = btc_obj['price_usd']
 
-# put btc & bch addresses here
-addresses = []
+	addresses = []
 
-totalEuros = 0
+	totalBTC = 0
+	totalEuros = 0
+	totalDollars = 0
 
-print('Balances:')
-for address in addresses:
-	btc_balance_json = urllib2.urlopen('https://blockchain.info/q/addressbalance/'+address)
-	bch_balance_json = urllib2.urlopen('https://blockdozer.com/insight-api/addr/'+address+'/totalReceived')
+	for address in addresses:
+		bitcoin = checkBalance(address)
+		euros 	= bitcoinToFIAT(bitcoin, btcEUR)
+		dollars = bitcoinToFIAT(bitcoin, btcUSD)
+		totalBTC		+= bitcoin
+		totalEuros		+= euros
+		totalDollars	+= dollars
+		if bitcoin!=0: print(str(bitcoin) + ' BTC | ' + str(euros) + ' € | ' + str(dollars) + ' $')
 
-	for b in [btc_balance_json, bch_balance_json]:
-		balance_sat = float(json.load(b))
-		balance = balance_sat / 100000000
-		euros = round(float(btcRate if b == btc_balance_json else bchRate) * balance, 3)
-		if euros == 0: continue
-		totalEuros += euros
-		print(str(euros) + ' € '+' in '+('BTC' if b == btc_balance_json else 'BCH'))
+	print('\n-----------------------------------------------')
+	print(str(totalBTC) + ' BTC | ' + str(totalEuros) + ' € | ' + str(totalDollars) + ' $')
+	print('BTC: ' + str(btcEUR) + ' €')
+	print('BTC: ' + btcUSD + ' $')
 
-for exchange in exchanges:
-	euros = round(float(btcRate) * exchange, 3)
-	totalEuros += euros
-	print(str(euros) + ' € on exchange')
-
-print('')
-print('Total:')
-print(str(totalEuros)+' €')
-print('')
-
+main()
